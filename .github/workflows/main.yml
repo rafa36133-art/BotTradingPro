@@ -8,45 +8,49 @@ jobs:
   build-apk:
     runs-on: ubuntu-22.04
     steps:
-      - name: 1. Baixar arquivos
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 2. Python 3.9
+      - name: Configurar Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: "3.10"
 
-      - name: 3. Instalar Java e libs
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Instalar libs do sistema
         run: |
-          sudo apt update -y
-          sudo apt install -y git zip unzip openjdk-11-jdk autoconf libtool \
-            pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
-            cmake libffi-dev libssl-dev
-          sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
-          sudo update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            git zip unzip autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
+            cmake libffi-dev libssl-dev libsqlite3-dev
           java -version
+          python3 --version
 
-      - name: 4. Buildozer e Cython
+      - name: Instalar Buildozer e Cython
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install --no-cache-dir Cython==0.29.36 buildozer==1.4.0 virtualenv==20.24.3
+          python3 -m pip install --upgrade pip setuptools wheel
+          python3 -m pip install --no-cache-dir \
+            Cython==0.29.37 \
+            buildozer==1.5.0 \
+            virtualenv==20.26.2
           buildozer --version
 
-      - name: 5. Cache rápido
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.buildozer
-            .buildozer
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+      - name: ACEITAR LICENÇAS GOOGLE + COMPILAR APK (15~20 min)
+        run: |
+          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses/ || true
+          echo -e "\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          echo -e "\n84831b940964dbf10b9bf471b6d16e09f7367441" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+          yes | yes | buildozer android debug 2>&1 | tail -n 300
+        timeout-minutes: 60
 
-      - name: 6. COMPILAR APK (12~18 min)
-        run: buildozer android debug
-        timeout-minutes: 50
-
-      - name: 7. APK PRONTO
+      - name: APK Pronto para baixar
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-PRONTO
           path: bin/*.apk
-
+          compression-level: 9
