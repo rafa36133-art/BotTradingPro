@@ -12,9 +12,10 @@ requirements = python3,kivy==2.3.0,pillow,kivymd==1.2.0,plyer,python-binance==1.
 orientation = portrait
 android.api = 33
 android.ndk = 25b
-android.archs = arm64-v8a
+android.build_tools_version = 33.0.3
+android.accept_sdk_license = True
+android.skip_update = True
 android.permissions = INTERNET,ACCESS_NETWORK_STATE,WAKE_LOCK,FOREGROUND_SERVICE,POST_NOTIFICATIONS,RECEIVE_BOOT_COMPLETED
-android.wakelock = True
 
 [buildozer]
 log_level = 2
