@@ -13,14 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar TUDO do sistema — INCLUSO AIDL!
+      - name: 🧹 APAGA TUDO O QUE O BUILDOZER CRIOU ERRADO
+        run: rm -rf ~/.buildozer .buildozer
+
+      - name: Instalar sistema + AIDL oficial
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            git zip unzip build-essential autoconf libtool pkg-config \
-            zlib1g-dev libncurses5-dev libtinfo5 cmake libffi-dev libssl-dev \
-            python3 python3-dev python3-pip python3-venv openjdk-17-jdk wget \
-            android-sdk-build-tools android-sdk-platform-tools aidl
+          sudo apt-get install -y -qq git zip unzip build-essential python3-pip openjdk-17-jdk wget android-sdk-build-tools aidl
           python3 -m pip install --upgrade pip setuptools wheel
           python3 -m pip install sh==1.14.3 Cython==0.29.37 buildozer==1.5.0
 
@@ -38,36 +37,24 @@ jobs:
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
           
-          # COPIA SDK PARA O CAMINHO DO BUILDOZER
-          mkdir -p /home/runner/.buildozer/platform/android-sdk
-          cp -r $ANDROID_HOME/* /home/runner/.buildozer/platform/android-sdk/
-          
-          # CRIA LINK DO AIDL NO CAMINHO QUE ELE PROCURA
+          # ✅ CRIA O AIDL EXATAMENTE ONDE ELE PROCURA
+          mkdir -p /home/runner/.buildozer/platform/android-sdk/build-tools/33.0.3/
           ln -sf /usr/bin/aidl /home/runner/.buildozer/platform/android-sdk/build-tools/33.0.3/aidl
-          echo "✅ AIDL E TODO SDK DISPONÍVEL!"
+          ln -sf /usr/bin/aidl $ANDROID_HOME/build-tools/33.0.3/aidl
+          echo "✅ AIDL DISPONÍVEL EM TODOS OS CAMINHOS!"
 
-      - name: 🧹 Limpar cache total
-        run: rm -rf ~/.buildozer .buildozer bin buildozer.log
-
-      - name: 🚀 COMPILAR — AGORA NÃO TEM COMO FALHAR!
+      - name: 🚀 COMPILAR — AGORA USA O NOSSO SDK!
         run: |
           buildozer android debug --no-updates
         timeout-minutes: 120
 
-      - name: 🔍 Pegar APK
+      - name: 🔍 PEGAR APK
         run: |
           mkdir -p bin
           APK=$(find /home/runner -name "*.apk" -type f | head -n 1)
-          if [ -n "$APK" ]; then
-            cp "$APK" bin/BotTradingPro.apk
-            ls -la bin/
-          else
-            echo "❌ Sem APK — mostrando log:"
-            tail -n 300 buildozer.log
-            exit 1
-          fi
+          [ -n "$APK" ] && cp "$APK" bin/BotTradingPro.apk && ls -la bin/
 
-      - name: ✅ Baixar APK
+      - name: ✅ BAIXAR APK
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-FINAL
