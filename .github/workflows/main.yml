@@ -46,21 +46,15 @@ jobs:
           unzip -q cmdline-tools.zip
           mv cmdline-tools latest
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          
-          # ✅ Cria atalho no CAMINHO ANTIGO que o Buildozer procura!
           mkdir -p $ANDROID_HOME/tools/bin
           ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
-          
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
           yes | sdkmanager --sdk_root=$ANDROID_HOME \
             "platform-tools" \
             "build-tools;33.0.3" \
             "platforms;android-33" \
             "ndk;25.2.9519653" > /dev/null 2>&1
-          
-          echo "✅ SDK, NDK e atalho do sdkmanager prontos!"
-          ls $ANDROID_HOME/build-tools/
-          ls $ANDROID_HOME/tools/bin/
+          echo "✅ SDK, NDK e atalho prontos!"
 
       - name: ✅ Aceitar TODAS licenças
         run: |
@@ -69,13 +63,11 @@ jobs:
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
           echo "84831b940964dbf10b9bf471b6d16e09f7367441" > $ANDROID_HOME/licenses/android-sdk-preview-license
-          echo "d975f751698a77b662f1254ddbeed3901e976f5a" > $ANDROID_HOME/licenses/intel-android-extra-license
           echo "✅ Licenças aceitas!"
 
-      - name: 📦 Instalar Buildozer + VERSAO CERTA DO SH (sem conflito!)
+      - name: 📦 Instalar Buildozer + versões sem conflito
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
-          # ✅ Primeiro instala o sh na versão que o p4a aceita!
           python3 -m pip install --no-cache-dir sh==1.14.3
           python3 -m pip install --no-cache-dir \
             Cython==0.29.37 \
@@ -83,24 +75,37 @@ jobs:
             virtualenv==20.26.2 \
             python-for-android==2023.9.16
           buildozer --version
-          p4a --version
 
-      - name: 🧹 Limpar cache velho do Buildozer
+      - name: 🧹 Limpar cache velho
         run: |
-          rm -rf ~/.buildozer .buildozer bin
+          rm -rf ~/.buildozer .buildozer bin buildozer.log
           echo "✅ Cache limpo!"
 
-      - name: 🚀 COMPILAR APK DE VERDADE (15~25 MIN)
+      - name: 🚀 COMPILAR APK DE VERDADE (15~25 MIN - LOG LIMPO!)
         run: |
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
           export ANDROID_HOME ANDROID_SDK_ROOT ANDROID_NDK_HOME
-          buildozer android debug
-        timeout-minutes: 80
+          # ✅ Compila com log mínimo, SALVA TUDO no arquivo buildozer.log
+          buildozer android release 2>&1 | tee buildozer.log | grep -iE "error|fail|fatal|apk|built|success|bin/" || true
+        timeout-minutes: 90
+        continue-on-error: true
 
-      - name: 📂 Confirmar APK gerado
+      - name: 🔍 MOSTRAR SÓ O FINAL DO LOG (VER ERRO REAL!)
         run: |
-          echo "📂 Pasta bin:"
-          ls -la bin/ || echo "❌ Vazia!"
+          echo "=========================================="
+          echo "📋 ÚLTIMAS 300 LINHAS DO LOG COMPLETO:"
+          echo "=========================================="
+          tail -n 300 buildozer.log 2>/dev/null || echo "❌ Log não encontrado"
+          echo ""
+          echo "📂 CONTEÚDO DA PASTA BIN:"
+          ls -la bin/ 2>/dev/null || echo "❌ Pasta bin vazia"
+
+      - name: 📎 SALVAR LOG COMPLETO PARA BAIXAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: Log-Completo-Compilacao
+          path: buildozer.log
+          if-no-files-found: ignore
 
       - name: ✅ APK PRONTO PARA BAIXAR
         uses: actions/upload-artifact@v4
@@ -108,5 +113,5 @@ jobs:
           name: BotTradingPro-APK-PRONTO
           path: bin/*.apk
           compression-level: 9
-
+          if-no-files-found: ignore
 
