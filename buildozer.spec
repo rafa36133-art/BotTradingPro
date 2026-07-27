@@ -4,20 +4,17 @@ package.name = bottradingpro
 package.domain = com.trading.bot
 source.dir = .
 source.main = main.py
-source.include_exts = py,png,jpg,kv,json,env,txt
 version = 1.0
-
 requirements = python3,kivy==2.3.0,pillow,kivymd==1.2.0,plyer,python-binance==1.0.19,python-dotenv==1.0.1,requests
-
 orientation = portrait
 android.api = 33
-android.ndk = 25b
+android.ndk = 25.2.9519653
 android.build_tools_version = 33.0.3
-android.accept_sdk_license = True
-android.skip_update = True
 android.sdk_path = /home/runner/Android/Sdk
 android.ndk_path = /home/runner/Android/Sdk/ndk/25.2.9519653
-android.permissions = INTERNET,ACCESS_NETWORK_STATE,WAKE_LOCK,FOREGROUND_SERVICE,POST_NOTIFICATIONS,RECEIVE_BOOT_COMPLETED
+android.accept_sdk_license = True
+android.skip_update = True
+android.permissions = INTERNET,ACCESS_NETWORK_STATE,WAKE_LOCK
 
 [buildozer]
 log_level = 2
