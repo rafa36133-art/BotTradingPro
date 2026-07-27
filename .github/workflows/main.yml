@@ -1,0 +1,27 @@
+name: Gerar APK BotTradingPro
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar ferramentas
+        run: |
+          sudo apt update -y
+          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+          pip3 install --upgrade pip setuptools wheel Cython==0.29.36 buildozer virtualenv
+
+      - name: Compilar APK (leva 10~15 min)
+        run: buildozer android debug
+        timeout-minutes: 45
+
+      - name: APK Pronto para baixar
+        uses: actions/upload-artifact@v4
+        with:
+          name: BotTradingPro-APK-PRONTO
+          path: bin/*.apk
