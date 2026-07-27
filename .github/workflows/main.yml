@@ -7,110 +7,44 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
-    env:
-      ANDROID_HOME: /home/runner/Android/Sdk
-      ANDROID_SDK_ROOT: /home/runner/Android/Sdk
-      ANDROID_NDK_HOME: /home/runner/Android/Sdk/ndk/25.2.9519653
-      BUILDOZER_ANDROID_SDK_DIR: /home/runner/Android/Sdk
-      BUILDOZER_ANDROID_NDK_DIR: /home/runner/Android/Sdk/ndk/25.2.9519653
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configurar Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - name: Configurar Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Instalar libs do sistema
+      - name: Instalar dependências do sistema
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            git zip unzip autoconf libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
-            cmake libffi-dev libssl-dev libsqlite3-dev wget
-          java -version
+            build-essential git python3 python3-dev python3-pip \
+            python3-venv openjdk-17-jdk wget unzip libffi-dev \
+            libssl-dev libsqlite3-dev libncurses5-dev libtinfo5 cmake
 
-      - name: 🛠️ Instalar Android SDK + NDK + Build-Tools
+      - name: Instalar Python e ferramentas
         run: |
-          mkdir -p $ANDROID_HOME/cmdline-tools
-          cd $ANDROID_HOME/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip
-          mv cmdline-tools latest
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          mkdir -p $ANDROID_HOME/tools/bin
-          ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          yes | sdkmanager --sdk_root=$ANDROID_HOME \
-            "platform-tools" "build-tools;33.0.3" "platforms;android-33" "ndk;25.2.9519653" > /dev/null 2>&1
-          echo "✅ SDK PRONTO!"
+          python3 -m venv venv
+          source venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install Cython==0.29.37 buildozer==1.5.0 sh==1.14.3
 
-      - name: ✅ Aceitar TODAS licenças
+      - name: Limpar cache
         run: |
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          mkdir -p $ANDROID_HOME/licenses
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
-          echo "84831b940964dbf10b9bf471b6d16e09f7367441" > $ANDROID_HOME/licenses/android-sdk-preview-license
-          echo "✅ Licenças aceitas!"
+          rm -rf .buildozer bin buildozer.log
+          source venv/bin/activate
+          buildozer android clean || true
 
-      - name: 📦 Instalar Buildozer sem conflitos
+      - name: Compilar APK e MOSTRAR TUDO
         run: |
-          python3 -m pip install --upgrade pip setuptools wheel
-          python3 -m pip install --no-cache-dir sh==1.14.3
-          python3 -m pip install --no-cache-dir \
-            Cython==0.29.37 \
-            buildozer==1.5.0 \
-            virtualenv==20.26.2
-          buildozer --version
+          source venv/bin/activate
+          buildozer android debug
+        timeout-minutes: 120
 
-      - name: 🧹 Limpar cache TOTAL
+      - name: Verificar APK
         run: |
-          rm -rf ~/.buildozer .buildozer bin buildozer.log
-          echo "✅ Cache limpo!"
+          ls -la bin/
+          find . -name "*.apk" -type f
 
-      - name: 🚀 COMPILAR APK COM BUILDOZER (O QUE JÁ FUNCIONAVA!)
-        run: |
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          export ANDROID_HOME ANDROID_SDK_ROOT ANDROID_NDK_HOME
-          buildozer android debug 2>&1 | tee buildozer.log
-        timeout-minutes: 90
-        continue-on-error: true
-
-      - name: 🔍 ENCONTRAR APK EM QUALQUER LUGAR
-        run: |
-          echo "🔍 Procurando APK..."
-          find /home/runner -name "*.apk" -type f 2>/dev/null
-          mkdir -p bin
-          APK=$(find /home/runner -name "*.apk" -type f | head -n 1)
-          if [ -n "$APK" ]; then
-            echo "✅ APK ENCONTRADO: $APK"
-            cp "$APK" bin/BotTradingPro.apk
-            ls -la bin/
-          else
-            echo "❌ Sem APK — mostrando final do log:"
-            tail -n 150 buildozer.log
-            exit 1
-          fi
-
-      - name: 📎 SALVAR LOG
+      - name: Baixar APK
         uses: actions/upload-artifact@v4
         with:
-          name: Log-Compilacao
-          path: buildozer.log
-          if-no-files-found: ignore
-
-      - name: ✅ APK PRONTO
-        uses: actions/upload-artifact@v4
-        with:
-          name: BotTradingPro-APK-PRONTO
+          name: BotTradingPro-APK-FINAL
           path: bin/*.apk
-          compression-level: 9
-
+          if-no-files-found: error
