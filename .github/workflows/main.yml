@@ -81,37 +81,45 @@ jobs:
           rm -rf ~/.buildozer .buildozer bin buildozer.log
           echo "✅ Cache limpo!"
 
-      - name: 🚀 COMPILAR APK DE VERDADE (15~25 MIN - LOG LIMPO!)
+      - name: 🚀 COMPILAR APK DE VERDADE (10~15 MIN)
         run: |
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
           export ANDROID_HOME ANDROID_SDK_ROOT ANDROID_NDK_HOME
-          # ✅ Compila com log mínimo, SALVA TUDO no arquivo buildozer.log
-          buildozer android release 2>&1 | tee buildozer.log | grep -iE "error|fail|fatal|apk|built|success|bin/" || true
-        timeout-minutes: 90
+          buildozer android debug 2>&1 | tee buildozer.log
+        timeout-minutes: 80
         continue-on-error: true
 
-      - name: 🔍 MOSTRAR SÓ O FINAL DO LOG (VER ERRO REAL!)
+      - name: 🔍 ENCONTRAR APK EM QUALQUER LUGAR + RENOMEAR (GARANTIDO!)
         run: |
           echo "=========================================="
-          echo "📋 ÚLTIMAS 300 LINHAS DO LOG COMPLETO:"
+          echo "🔍 Procurando APK em TODO o projeto..."
           echo "=========================================="
-          tail -n 300 buildozer.log 2>/dev/null || echo "❌ Log não encontrado"
+          find /home/runner -name "*.apk" -type f 2>/dev/null
           echo ""
-          echo "📂 CONTEÚDO DA PASTA BIN:"
-          ls -la bin/ 2>/dev/null || echo "❌ Pasta bin vazia"
+          mkdir -p bin
+          # Procura em QUALQUER pasta e pega o primeiro APK que achar
+          APK_CAMINHO=$(find /home/runner -name "*.apk" -type f | head -n 1)
+          if [ -n "$APK_CAMINHO" ]; then
+            echo "✅ APK ENCONTRADO EM: $APK_CAMINHO"
+            cp -f "$APK_CAMINHO" bin/BotTradingPro-APK-PRONTO.apk
+            echo "✅ Copiado para: bin/BotTradingPro-APK-PRONTO.apk"
+            ls -la bin/
+          else
+            echo "❌ Nenhum APK encontrado — mostrando final do log:"
+            tail -n 200 buildozer.log
+            exit 1
+          fi
 
-      - name: 📎 SALVAR LOG COMPLETO PARA BAIXAR
+      - name: 📎 SALVAR LOG COMPLETO
         uses: actions/upload-artifact@v4
         with:
           name: Log-Completo-Compilacao
           path: buildozer.log
           if-no-files-found: ignore
 
-      - name: ✅ APK PRONTO PARA BAIXAR
+      - name: ✅ APK PRONTO PARA BAIXAR (AGORA SIM APARECE!)
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-PRONTO
-          path: bin/*.apk
+          path: bin/BotTradingPro-APK-PRONTO.apk
           compression-level: 9
-          if-no-files-found: ignore
-
