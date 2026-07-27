@@ -9,59 +9,49 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       ANDROID_HOME: /home/runner/Android/Sdk
-      ANDROID_SDK_ROOT: /home/runner/Android/Sdk
-      PATH: /home/runner/Android/Sdk/cmdline-tools/latest/bin:/home/runner/Android/Sdk/platform-tools:$PATH
+      PATH: /usr/bin:/bin:/home/runner/Android/Sdk/cmdline-tools/latest/bin:/home/runner/Android/Sdk/platform-tools:$PATH
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: 🧹 LIMPA TUDO
-        run: rm -rf ~/.buildozer .buildozer bin buildozer.log
-
-      - name: Instalar sistema + ferramentas
+      - name: 🧹 GARANTE COMANDOS BÁSICOS EXISTEM
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq git zip unzip build-essential python3-pip openjdk-17-jdk wget android-sdk-build-tools aidl
+          sudo apt-get install -y -qq tar zip unzip git wget
+
+      - uses: actions/checkout@v4
+
+      - name: Instalar tudo o que precisa
+        run: |
+          sudo apt-get install -y -qq build-essential python3-pip openjdk-17-jdk android-sdk-build-tools aidl
           python3 -m pip install --upgrade pip setuptools wheel
           python3 -m pip install sh==1.14.3 Cython==0.29.37 buildozer==1.5.0
 
-      - name: 🛠️ INSTALA SDK E AJUSTA CAMINHOS
+      - name: 🛠️ Preparar SDK e caminhos
         run: |
           mkdir -p $ANDROID_HOME/cmdline-tools
           cd $ANDROID_HOME/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
           unzip -q cmd.zip && mv cmdline-tools latest
           
-          # Instala o que precisamos
           yes | sdkmanager --sdk_root=$ANDROID_HOME \
             "platform-tools" "build-tools;33.0.3" "platforms;android-33" "ndk;25.2.9519653" > /dev/null 2>&1
           
-          # Licenças
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
           
-          # ✅ CRIA ATALHOS PARA O BUILDOZER ACHAR O SDKMANAGER
           mkdir -p /home/runner/Android/Sdk/tools/bin
           ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager /home/runner/Android/Sdk/tools/bin/sdkmanager
-          ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager /usr/local/bin/sdkmanager
-          
-          # Copia SDK para o lugar que ele procura
           mkdir -p /home/runner/.buildozer/platform/android-sdk
           cp -r $ANDROID_HOME/* /home/runner/.buildozer/platform/android-sdk/
-          
-          echo "✅ SDKMANAGER E TODOS CAMINHOS CORRETOS!"
 
-      - name: 🚀 COMPILAR — FORÇA CAMINHO DO SDK
-        run: |
-          export ANDROID_SDK_MANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
-          buildozer android debug --no-updates
+      - name: 🚀 COMPILAR
+        run: buildozer android debug --no-updates
         timeout-minutes: 120
 
       - name: 🔍 PEGAR APK
         run: |
           mkdir -p bin
           APK=$(find /home/runner -name "*.apk" -type f | head -n 1)
-          [ -n "$APK" ] && cp "$APK" bin/BotTradingPro.apk && ls -la bin/
+          [ -n "$APK" ] && cp "$APK" bin/BotTradingPro.apk
 
       - name: ✅ BAIXAR APK
         uses: actions/upload-artifact@v4
