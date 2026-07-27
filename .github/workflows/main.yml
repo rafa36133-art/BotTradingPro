@@ -7,6 +7,11 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
+    env:
+      ANDROID_HOME: /home/runner/Android/Sdk
+      ANDROID_SDK_ROOT: /home/runner/Android/Sdk
+      ANDROID_NDK_HOME: /home/runner/Android/Sdk/ndk/25.2.9519653
+
     steps:
       - uses: actions/checkout@v4
 
@@ -27,9 +32,22 @@ jobs:
           sudo apt-get install -y -qq \
             git zip unzip autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
-            cmake libffi-dev libssl-dev libsqlite3-dev
+            cmake libffi-dev libssl-dev libsqlite3-dev wget
           java -version
           python3 --version
+
+      - name: Instalar Android SDK + NDK OFICIAIS (o que faltava!)
+        run: |
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          mv cmdline-tools latest
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platform-tools" "build-tools;33.0.3" "platforms;android-33" "ndk;25.2.9519653" > /dev/null 2>&1
+          echo "✅ SDK e NDK instalados!"
+          ls $ANDROID_HOME/ndk/
 
       - name: Instalar Buildozer e Cython
         run: |
@@ -37,28 +55,28 @@ jobs:
           python3 -m pip install --no-cache-dir \
             Cython==0.29.37 \
             buildozer==1.5.0 \
-            virtualenv==20.26.2
+            virtualenv==20.26.2 \
+            python-for-android==2023.9.16
           buildozer --version
+          p4a --version
 
-      - name: ACEITAR LICENÇAS GOOGLE E LIMPAR CACHE ANTIGO
+      - name: Limpar cache velho
         run: |
           rm -rf ~/.buildozer .buildozer bin
-          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses/
-          echo -e "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo -e "84831b940964dbf10b9bf471b6d16e09f7367441" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
-          echo "✅ Licenças aceitas e cache limpo!"
+          echo "✅ Cache limpo!"
 
-      - name: 🚀 COMPILAR APK DO ZERO (DEMORA 15~20 MIN - NÃO FECHE!)
+      - name: 🚀 COMPILAR APK DE VERDADE (15~20 MIN - NÃO FECHE!)
         run: |
-          yes "" | buildozer android debug
-        timeout-minutes: 60
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          buildozer android debug
+        timeout-minutes: 70
 
-      - name: 📂 VER SE O APK FOI GERADO
+      - name: 📂 Confirmar APK gerado
         run: |
-          echo "📂 Conteudo da pasta bin:"
-          ls -la bin/ || echo "❌ Pasta bin vazia ou nao existe!"
+          echo "📂 Pasta bin:"
+          ls -la bin/ || echo "❌ Vazia!"
 
-      - name: ✅ APK PRONTO - BAIXAR
+      - name: ✅ APK PRONTO PARA BAIXAR
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-PRONTO
