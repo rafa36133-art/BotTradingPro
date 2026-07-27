@@ -9,14 +9,14 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: 1. Baixar arquivos do projeto
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: 2. Configurar Python 3.9 (versão mais estável para buildozer)
-        uses: actions/setup-python@v4
+      - name: 2. Configurar Python 3.9 (estável para buildozer)
+        uses: actions/setup-python@v5
         with:
           python-version: "3.9"
 
-      - name: 3. Instalar Java e ferramentas do sistema
+      - name: 3. Instalar Java e ferramentas
         run: |
           sudo apt update -y
           sudo apt install -y git zip unzip openjdk-11-jdk autoconf libtool \
@@ -26,28 +26,27 @@ jobs:
           sudo update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
           java -version
 
-      - name: 4. Instalar Cython e Buildozer (versões que FUNCIONAM)
+      - name: 4. Instalar Buildozer (versão que funciona)
         run: |
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install --no-cache-dir Cython==0.29.36 buildozer==1.4.0 virtualenv==20.24.3
           buildozer --version
 
       - name: 5. Cache para compilar mais rápido
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.buildozer
             .buildozer
           key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
 
-      - name: 6. COMPILAR APK (leva 12~18 min)
+      - name: 6. COMPILAR APK (12~18 min)
         run: |
           buildozer android debug
         timeout-minutes: 50
 
-      - name: 7. APK PRONTO - Baixar
-        uses: actions/upload-artifact@v3
+      - name: 7. APK PRONTO para baixar
+        uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-PRONTO
           path: bin/*.apk
-
