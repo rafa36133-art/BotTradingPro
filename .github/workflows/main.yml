@@ -8,30 +8,45 @@ jobs:
   build-apk:
     runs-on: ubuntu-22.04
     steps:
-      - name: Baixar arquivos do projeto
-        uses: actions/checkout@v4
+      - name: 1. Baixar arquivos do projeto
+        uses: actions/checkout@v3
 
-      - name: Configurar Python 3.10
-        uses: actions/setup-python@v5
+      - name: 2. Configurar Python 3.9 (versão mais estável para buildozer)
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.9"
 
-      - name: Instalar Java e ferramentas do sistema
+      - name: 3. Instalar Java e ferramentas do sistema
         run: |
           sudo apt update -y
-          sudo apt install -y git zip unzip openjdk-17-jdk autoconf libtool \
+          sudo apt install -y git zip unzip openjdk-11-jdk autoconf libtool \
             pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
             cmake libffi-dev libssl-dev
-          pip3 install --upgrade pip setuptools wheel
-          pip3 install --no-cache-dir Cython==0.29.36 buildozer==1.5.0 virtualenv
+          sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
+          sudo update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
+          java -version
 
-      - name: Compilar APK (leva 12~18 min)
+      - name: 4. Instalar Cython e Buildozer (versões que FUNCIONAM)
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --no-cache-dir Cython==0.29.36 buildozer==1.4.0 virtualenv==20.24.3
+          buildozer --version
+
+      - name: 5. Cache para compilar mais rápido da próxima vez
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.buildozer
+            .buildozer
+          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+
+      - name: 6. COMPILAR APK (leva 12~18 min)
         run: |
           buildozer android debug
         timeout-minutes: 50
 
-      - name: APK Pronto para baixar
-        uses: actions/upload-artifact@v4
+      - name: 7. APK PRONTO - Baixar
+        uses: actions/upload-artifact@v3
         with:
           name: BotTradingPro-APK-PRONTO
           path: bin/*.apk
