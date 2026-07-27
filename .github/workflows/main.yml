@@ -11,6 +11,8 @@ jobs:
       ANDROID_HOME: /home/runner/Android/Sdk
       ANDROID_SDK_ROOT: /home/runner/Android/Sdk
       ANDROID_NDK_HOME: /home/runner/Android/Sdk/ndk/25.2.9519653
+      BUILDOZER_ANDROID_SDK_DIR: /home/runner/Android/Sdk
+      BUILDOZER_ANDROID_NDK_DIR: /home/runner/Android/Sdk/ndk/25.2.9519653
 
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +38,7 @@ jobs:
           java -version
           python3 --version
 
-      - name: Instalar Android SDK + NDK OFICIAIS (o que faltava!)
+      - name: 🛠️ Instalar Android SDK + NDK + Build-Tools 33.0.3 (EXATO!)
         run: |
           mkdir -p $ANDROID_HOME/cmdline-tools
           cd $ANDROID_HOME/cmdline-tools
@@ -45,11 +47,26 @@ jobs:
           mv cmdline-tools latest
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platform-tools" "build-tools;33.0.3" "platforms;android-33" "ndk;25.2.9519653" > /dev/null 2>&1
-          echo "✅ SDK e NDK instalados!"
+          yes | sdkmanager --sdk_root=$ANDROID_HOME \
+            "platform-tools" \
+            "build-tools;33.0.3" \
+            "platforms;android-33" \
+            "ndk;25.2.9519653" > /dev/null 2>&1
+          echo "✅ SDK, NDK e Build-Tools 33.0.3 instalados!"
+          ls $ANDROID_HOME/build-tools/
           ls $ANDROID_HOME/ndk/
 
-      - name: Instalar Buildozer e Cython
+      - name: ✅ Aceitar TODAS licenças de novo (garantido!)
+        run: |
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          mkdir -p $ANDROID_HOME/licenses
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+          echo "84831b940964dbf10b9bf471b6d16e09f7367441" > $ANDROID_HOME/licenses/android-sdk-preview-license
+          echo "d975f751698a77b662f1254ddbeed3901e976f5a" > $ANDROID_HOME/licenses/intel-android-extra-license
+          echo "✅ Todas licenças aceitas!"
+
+      - name: Instalar Buildozer + python-for-android
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
           python3 -m pip install --no-cache-dir \
@@ -60,18 +77,19 @@ jobs:
           buildozer --version
           p4a --version
 
-      - name: Limpar cache velho
+      - name: 🧹 APAGAR SDK INTERNO DO BUILDOZER (ele não pode baixar nada!)
         run: |
           rm -rf ~/.buildozer .buildozer bin
-          echo "✅ Cache limpo!"
+          echo "✅ Cache e SDK interno do buildozer APAGADOS! Ele vai usar O NOSSO SDK."
 
-      - name: 🚀 COMPILAR APK DE VERDADE (15~20 MIN - NÃO FECHE!)
+      - name: 🚀 COMPILAR APK DE VERDADE (15~25 MIN - NÃO FECHE!)
         run: |
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          export ANDROID_HOME ANDROID_SDK_ROOT ANDROID_NDK_HOME
           buildozer android debug
-        timeout-minutes: 70
+        timeout-minutes: 80
 
-      - name: 📂 Confirmar APK gerado
+      - name: 📂 Confirmar APK
         run: |
           echo "📂 Pasta bin:"
           ls -la bin/ || echo "❌ Vazia!"
@@ -82,4 +100,5 @@ jobs:
           name: BotTradingPro-APK-PRONTO
           path: bin/*.apk
           compression-level: 9
+
 
