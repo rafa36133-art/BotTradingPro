@@ -28,7 +28,6 @@ presplash.filename = %(source.dir)s/splash.png
 presplash_color = #0B0E11
 
 [buildozer]
-log_level = 2
-warn_on_root = 1
-build_dir = .buildozer
-bin_dir = bin
+android.release_artifact = apk
+android.signkey = 
+android.storepass = 
