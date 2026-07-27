@@ -40,17 +40,28 @@ jobs:
             virtualenv==20.26.2
           buildozer --version
 
-      - name: ACEITAR LICENÇAS GOOGLE + COMPILAR APK (15~20 min)
+      - name: ACEITAR LICENÇAS GOOGLE E LIMPAR CACHE ANTIGO
         run: |
-          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses/ || true
-          echo -e "\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo -e "\n84831b940964dbf10b9bf471b6d16e09f7367441" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
-          yes | yes | buildozer android debug 2>&1 | tail -n 300
+          rm -rf ~/.buildozer .buildozer bin
+          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses/
+          echo -e "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          echo -e "84831b940964dbf10b9bf471b6d16e09f7367441" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+          echo "✅ Licenças aceitas e cache limpo!"
+
+      - name: 🚀 COMPILAR APK DO ZERO (DEMORA 15~20 MIN - NÃO FECHE!)
+        run: |
+          yes "" | buildozer android debug
         timeout-minutes: 60
 
-      - name: APK Pronto para baixar
+      - name: 📂 VER SE O APK FOI GERADO
+        run: |
+          echo "📂 Conteudo da pasta bin:"
+          ls -la bin/ || echo "❌ Pasta bin vazia ou nao existe!"
+
+      - name: ✅ APK PRONTO - BAIXAR
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-PRONTO
           path: bin/*.apk
           compression-level: 9
+
