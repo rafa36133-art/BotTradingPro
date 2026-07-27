@@ -11,8 +11,13 @@ requirements = python3==3.10.11,hostpython3==3.10.11,kivy==2.3.0,pillow==10.3.0,
 orientation = portrait
 fullscreen = 0
 android.api = 33
-android.ndk = 25b
+android.ndk = 25.2.9519653
 android.archs = arm64-v8a
+android.build_tools_version = 33.0.3
+android.sdk_path = /home/runner/Android/Sdk
+android.ndk_path = /home/runner/Android/Sdk/ndk/25.2.9519653
+android.accept_sdk_license = True
+android.skip_update = True
 android.permissions = INTERNET, ACCESS_NETWORK_STATE, WAKE_LOCK, FOREGROUND_SERVICE, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED
 android.apptheme = @android:style/Theme.Material.Light.NoActionBar
 android.allowBackups = True
