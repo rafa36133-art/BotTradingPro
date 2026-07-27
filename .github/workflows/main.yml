@@ -10,60 +10,77 @@ jobs:
     env:
       ANDROID_HOME: /home/runner/Android/Sdk
       ANDROID_SDK_ROOT: /home/runner/Android/Sdk
-      ANDROID_NDK_HOME: /home/runner/Android/Sdk/ndk/25.2.9519653
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar sistema
+      - name: Instalar sistema básico
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev cmake libffi-dev libssl-dev wget
+          sudo apt-get install -y -qq git zip unzip build-essential python3-pip python3-venv openjdk-17-jdk wget
 
       - name: Instalar Python e Buildozer
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
           python3 -m pip install sh==1.14.3 Cython==0.29.37 buildozer==1.5.0
 
-      - name: 🛠️ Instalar SDK EXATO + ACEITAR LICENÇAS
+      - name: 🛠️ INSTALAR SOMENTE O QUE PRECISAMOS (NÃO MUDA!)
         run: |
           mkdir -p $ANDROID_HOME/cmdline-tools
           cd $ANDROID_HOME/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
           unzip -q cmd.zip && mv cmdline-tools latest
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          mkdir -p $ANDROID_HOME/tools/bin && ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
           
-          # INSTALA SOMENTE O QUE PRECISAMOS E JÁ ACEITO
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          # CRIA ATALHOS PARA O BUILDOZER ACHAR
+          mkdir -p $ANDROID_HOME/tools/bin
+          ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
+          ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager $ANDROID_HOME/tools/bin/avdmanager
+          
+          # INSTALA EXATAMENTE AS VERSÕES ACEITAS
           yes | sdkmanager --sdk_root=$ANDROID_HOME \
-            "platform-tools" "build-tools;33.0.3" "platforms;android-33" "ndk;25.2.9519653" > /dev/null 2>&1
+            "platform-tools" \
+            "build-tools;33.0.3" \
+            "platforms;android-33" \
+            "ndk;25.2.9519653" > /dev/null 2>&1
           
-          # FORÇA LICENÇAS SALVAS
+          # CRIA ARQUIVOS DE LICENÇA MANUALMENTE (GARANTIDO!)
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
           echo "84831b940964dbf10b9bf471b6d16e09f7367441" > $ANDROID_HOME/licenses/android-sdk-preview-license
-          echo "✅ SDK 33.0.3 PRONTO!"
+          echo "d975f751698a77b662f1254ddbeed3901e976f5a" > $ANDROID_HOME/licenses/intel-android-extra-license
+          
+          # APAGA QUALQUER VERSÃO NOVA QUE ELE TENTOU BAIXAR
+          rm -rf $ANDROID_HOME/build-tools/37*
+          echo "✅ TUDO PRONTO — SOMENTE VERSÃO 33.0.3!"
 
-      - name: 🧹 Limpar cache
-        run: rm -rf ~/.buildozer .buildozer bin
+      - name: 🧹 Limpar cache TOTAL
+        run: rm -rf ~/.buildozer .buildozer bin buildozer.log
 
-      - name: 🚀 COMPILAR (NÃO MUDA VERSÃO!)
+      - name: 🚀 COMPILAR — NÃO PERMITE ATUALIZAÇÃO
         run: |
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          export ANDROID_HOME ANDROID_SDK_ROOT ANDROID_NDK_HOME
-          buildozer android debug
-        timeout-minutes: 90
+          export ANDROID_HOME ANDROID_SDK_ROOT
+          buildozer android debug --no-updates
+        timeout-minutes: 120
 
-      - name: 🔍 PEGAR APK
+      - name: 🔍 COPIAR APK PARA BAIXAR
         run: |
           mkdir -p bin
           APK=$(find /home/runner -name "*.apk" -type f | head -n 1)
-          [ -n "$APK" ] && cp "$APK" bin/BotTradingPro.apk && ls -la bin/
+          if [ -n "$APK" ]; then
+            echo "✅ APK ENCONTRADO: $APK"
+            cp "$APK" bin/BotTradingPro.apk
+            ls -la bin/
+          else
+            echo "❌ Nenhum APK — mostrando log final:"
+            tail -n 200 buildozer.log
+            exit 1
+          fi
 
       - name: ✅ BAIXAR APK
         uses: actions/upload-artifact@v4
         with:
-          name: BotTradingPro-APK-PRONTO
+          name: BotTradingPro-APK-FINAL
           path: bin/*.apk
 
