@@ -14,14 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar TUDO — INCLUSO AIDL OFICIAL!
+      - name: Instalar TUDO — INCLUSO AIDL
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq tar zip unzip git wget build-essential python3-pip openjdk-17-jdk android-sdk-build-tools aidl
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37
           python3 -m pip install --user buildozer==1.5.0
 
-      - name: Preparar SDK E COLOCAR TUDO NO LUGAR CERTO
+      - name: Preparar SDK — COLOCAR TUDO NO LUGAR EXATO
         run: |
           mkdir -p $ANDROID_HOME/cmdline-tools
           cd $ANDROID_HOME/cmdline-tools
@@ -29,29 +29,36 @@ jobs:
           unzip -q cmd.zip && mv cmdline-tools latest
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
           
-          # Licenças manuais
+          # Licenças
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
-          echo "84831b9409646a918e30573bab48c9c86a8f3254" > $ANDROID_HOME/licenses/android-sdk-preview-license
           
-          # Instala componentes
+          # Instala build-tools NA VERSÃO QUE O BUILDOZER USA POR PADRÃO
           sdkmanager --sdk_root=$ANDROID_HOME --install \
-            "platform-tools" "build-tools;33.0.3" "platforms;android-33" "ndk;25.2.9519653"
+            "platform-tools" "build-tools;33.0.2" "platforms;android-33" "ndk;25b"
           
-          # ✅ CRIA A PASTA EXATA QUE O BUILDOZER Pede E COPIA TUDO
+          # ✅ COPIA SDK E RENOMEIA PASTA PARA O QUE ELE PROCURA
           BZ_SDK=/home/runner/.buildozer/platform/android-sdk
-          mkdir -p $BZ_SDK/build-tools/33.0.3
+          mkdir -p $BZ_SDK
           cp -r $ANDROID_HOME/* $BZ_SDK/
           
-          # ✅ COPIA O AIDL INSTALADO DO SISTEMA PARA DENTRO DA PASTA DO BUILDOZER
-          which aidl
-          cp /usr/bin/aidl $BZ_SDK/build-tools/33.0.3/aidl
-          chmod +x $BZ_SDK/build-tools/33.0.3/aidl
-          cp $BZ_SDK/build-tools/33.0.3/aidl $ANDROID_HOME/build-tools/33.0.3/aidl
+          # ✅ COPIA O AIDL PARA TODAS AS PASTAS POSSÍVEIS
+          AIDL_BIN=$(which aidl)
+          for pasta in \
+            $BZ_SDK/build-tools/33.0.2 \
+            $BZ_SDK/build-tools/33.0.3 \
+            $ANDROID_HOME/build-tools/33.0.2 \
+            $ANDROID_HOME/build-tools/33.0.3 \
+            /usr/local/bin
+          do
+            mkdir -p $pasta
+            cp $AIDL_BIN $pasta/aidl
+            chmod +x $pasta/aidl
+          done
           
-          echo "✅ AIDL E BUILD-TOOLS NO LUGAR EXATO!"
+          echo "✅ AIDL E BUILD-TOOLS DISPONÍVEIS EM TODOS OS CAMINHOS!"
 
-      - name: 🚀 COMPILAR — AGORA NÃO TEM MAIS O QUE FALTAR!
+      - name: 🚀 COMPILAR — FORÇA VERSÃO CORRETA
         run: |
           python3 -m buildozer android debug --no-updates --log-level 2
         timeout-minutes: 120
@@ -64,7 +71,7 @@ jobs:
             cp "$APK" bin/BotTradingPro.apk
             echo "✅ APK GERADO COM SUCESSO!"
           else
-            echo "❌ APK NÃO GERADO — VERIFIQUE SEUS ARQUIVOS"
+            echo "❌ APK NÃO GERADO"
             exit 1
           fi
 
