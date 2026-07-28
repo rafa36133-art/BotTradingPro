@@ -14,14 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar tudo o que precisa
+      - name: Instalar TUDO — INCLUSO AIDL OFICIAL!
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq tar zip unzip git wget build-essential python3-pip openjdk-17-jdk
+          sudo apt-get install -y -qq tar zip unzip git wget build-essential python3-pip openjdk-17-jdk android-sdk-build-tools aidl
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37
           python3 -m pip install --user buildozer==1.5.0
 
-      - name: Preparar SDK — SEM O YES QUE CAUSA ERRO!
+      - name: Preparar SDK E COLOCAR TUDO NO LUGAR CERTO
         run: |
           mkdir -p $ANDROID_HOME/cmdline-tools
           cd $ANDROID_HOME/cmdline-tools
@@ -29,20 +29,29 @@ jobs:
           unzip -q cmd.zip && mv cmdline-tools latest
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
           
-          # ✅ CRIA LICENÇA MANUALMENTE — NÃO PRECISA DO YES!
+          # Licenças manuais
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
           echo "84831b9409646a918e30573bab48c9c86a8f3254" > $ANDROID_HOME/licenses/android-sdk-preview-license
           
-          # Instala componentes sem precisar confirmar
+          # Instala componentes
           sdkmanager --sdk_root=$ANDROID_HOME --install \
             "platform-tools" "build-tools;33.0.3" "platforms;android-33" "ndk;25.2.9519653"
           
-          # Copia SDK para o Buildozer encontrar
-          mkdir -p /home/runner/.buildozer/platform/android-sdk
-          cp -r $ANDROID_HOME/* /home/runner/.buildozer/platform/android-sdk/
+          # ✅ CRIA A PASTA EXATA QUE O BUILDOZER Pede E COPIA TUDO
+          BZ_SDK=/home/runner/.buildozer/platform/android-sdk
+          mkdir -p $BZ_SDK/build-tools/33.0.3
+          cp -r $ANDROID_HOME/* $BZ_SDK/
+          
+          # ✅ COPIA O AIDL INSTALADO DO SISTEMA PARA DENTRO DA PASTA DO BUILDOZER
+          which aidl
+          cp /usr/bin/aidl $BZ_SDK/build-tools/33.0.3/aidl
+          chmod +x $BZ_SDK/build-tools/33.0.3/aidl
+          cp $BZ_SDK/build-tools/33.0.3/aidl $ANDROID_HOME/build-tools/33.0.3/aidl
+          
+          echo "✅ AIDL E BUILD-TOOLS NO LUGAR EXATO!"
 
-      - name: 🚀 COMPILAR — FORMA GARANTIDA!
+      - name: 🚀 COMPILAR — AGORA NÃO TEM MAIS O QUE FALTAR!
         run: |
           python3 -m buildozer android debug --no-updates --log-level 2
         timeout-minutes: 120
@@ -55,7 +64,7 @@ jobs:
             cp "$APK" bin/BotTradingPro.apk
             echo "✅ APK GERADO COM SUCESSO!"
           else
-            echo "❌ APK NÃO GERADO — VERIFIQUE O buildozer.spec E SEUS ARQUIVOS"
+            echo "❌ APK NÃO GERADO — VERIFIQUE SEUS ARQUIVOS"
             exit 1
           fi
 
