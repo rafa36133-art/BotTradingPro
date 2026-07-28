@@ -7,20 +7,52 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
+    env:
+      ANDROID_HOME: /home/runner/Android/Sdk
+      PATH: /usr/bin:/bin:/home/runner/.local/bin:$PATH
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: 🚀 GERAR APK COM AÇÃO PRONTA — NÃO PRECISA CONFIGURAR NADA!
-        uses: tikkana/buildozer-action@v1
-        with:
-          python-version: '3.10'
-          buildozer-arguments: 'android debug'
+      - name: Instalar tudo o que precisa
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tar zip unzip git wget build-essential python3-pip openjdk-17-jdk
+          python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37
+          python3 -m pip install --user buildozer==1.5.0
+
+      - name: Preparar SDK e licenças
+        run: |
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
+          unzip -q cmd.zip && mv cmdline-tools latest
+          
+          yes | sdkmanager --sdk_root=$ANDROID_HOME \
+            "platform-tools" "build-tools;33.0.3" "platforms;android-33" "ndk;25.2.9519653" > /dev/null 2>&1
+          
+          mkdir -p $ANDROID_HOME/licenses
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+          
+          mkdir -p /home/runner/.buildozer/platform/android-sdk
+          cp -r $ANDROID_HOME/* /home/runner/.buildozer/platform/android-sdk/
+
+      - name: 🚀 COMPILAR — FORMA GARANTIDA!
+        run: |
+          python3 -m buildozer android debug --no-updates --log-level 2
+        timeout-minutes: 120
 
       - name: Pegar APK
         run: |
           mkdir -p bin
-          APK=$(find . -name "*.apk" -type f | head -n 1)
-          [ -n "$APK" ] && cp "$APK" bin/BotTradingPro.apk
+          APK=$(find /home/runner -name "*.apk" -type f | head -n 1)
+          if [ -n "$APK" ]; then
+            cp "$APK" bin/BotTradingPro.apk
+            echo "✅ APK GERADO COM SUCESSO!"
+          else
+            echo "❌ APK NÃO GERADO — VERIFIQUE O buildozer.spec E SEUS ARQUIVOS"
+            exit 1
+          fi
 
       - name: Baixar APK
         uses: actions/upload-artifact@v4
