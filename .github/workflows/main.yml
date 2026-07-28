@@ -31,7 +31,7 @@ jobs:
           export ANDROID_HOME=/home/runner/Android/Sdk
           mkdir -p $ANDROID_HOME/cmdline-tools
           cd $ANDROID_HOME/cmdline-tools
-          wget -q --timeout=120 https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
           unzip -q cmd.zip && mv cmdline-tools latest
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
           
@@ -39,8 +39,8 @@ jobs:
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
           
-          # Instala tudo com tempo maior
-          sdkmanager --sdk_root=$ANDROID_HOME --install --timeout=300 \
+          # ✅ REMOVEMOS O --timeout QUE NÃO EXISTE
+          sdkmanager --sdk_root=$ANDROID_HOME --install \
             "platform-tools" "build-tools;33.0.2" "platforms;android-33" "ndk;25.2.9519653"
           
           # Copia para a pasta que o Buildozer procura
