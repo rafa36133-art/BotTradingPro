@@ -24,8 +24,8 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37
           python3 -m pip install --user python-for-android==2023.9.16
-          # Confirma que está instalado
-          python3 -m pythonforandroid --version
+          # ✅ FORMA CORRETA DE VERIFICAR
+          python3 -c "import p4a; print('✅ p4a INSTALADO COM SUCESSO!')"
 
       - name: Preparar SDK
         run: |
@@ -40,9 +40,9 @@ jobs:
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
 
-      - name: 🚀 COMPILAR — USANDO CAMINHO CERTO!
+      - name: 🚀 COMPILAR — FORMA OFICIAL E CORRETA!
         run: |
-          python3 -m pythonforandroid apk \
+          python3 -m p4a apk \
             --name "BotTradingPro" \
             --package.name "bottradingpro" \
             --package.domain "com.trading.bot" \
@@ -78,3 +78,4 @@ jobs:
         with:
           name: BotTradingPro-APK-FINAL
           path: bin/*.apk
+
