@@ -7,76 +7,31 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
-    env:
-      ANDROID_HOME: /home/runner/Android/Sdk
-      PATH: /usr/bin:/bin:/home/runner/.local/bin:$PATH
-
+    container: python:3.10
     steps:
       - uses: actions/checkout@v4
 
-      - name: 🔧 LIMPA TUDO ANTES DE COMEÇAR
+      - name: 📦 INSTALA TUDO NO CONTAINER — JÁ VEM COM PYTHON
         run: |
-          rm -rf ~/.buildozer ~/Android/Sdk
-          mkdir -p ~/.buildozer ~/Android/Sdk
+          apt-get update -qq
+          apt-get install -y -qq git wget zip unzip build-essential openjdk-17-jdk android-sdk-build-tools aidl ant
+          python -m pip install --upgrade pip setuptools wheel cython==0.29.37
+          python -m pip install buildozer==1.5.0
 
-      - name: 📦 INSTALA TODAS DEPENDÊNCIAS DO SISTEMA
+      - name: 🚀 COMPILA DIRETO — NÃO PRECISA BAIXAR NADA EXTRA
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq tar zip unzip git wget curl build-essential python3-pip openjdk-17-jdk android-sdk-build-tools aidl ant
-          python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37 requests==2.31.0
-          python3 -m pip install --user buildozer==1.5.0
+          buildozer android debug --no-updates --log-level 2
+        timeout-minutes: 240
 
-      - name: 📥 BAIXA E INSTALA SDK + NDK COMPLETO — ANTES DO BUILDOZER
-        run: |
-          export ANDROID_HOME=/home/runner/Android/Sdk
-          mkdir -p $ANDROID_HOME/cmdline-tools
-          cd $ANDROID_HOME/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
-          unzip -q cmd.zip && mv cmdline-tools latest
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          
-          # Licenças
-          mkdir -p $ANDROID_HOME/licenses
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
-          
-          # ✅ REMOVEMOS O --timeout QUE NÃO EXISTE
-          sdkmanager --sdk_root=$ANDROID_HOME --install \
-            "platform-tools" "build-tools;33.0.2" "platforms;android-33" "ndk;25.2.9519653"
-          
-          # Copia para a pasta que o Buildozer procura
-          BZ_SDK=/home/runner/.buildozer/platform/android-sdk
-          mkdir -p $BZ_SDK
-          cp -r $ANDROID_HOME/* $BZ_SDK/
-          
-          # Coloca AIDL em todos os lugares
-          AIDL_BIN=$(which aidl)
-          for pasta in $BZ_SDK/build-tools/33.0.2 $ANDROID_HOME/build-tools/33.0.2 /usr/local/bin; do
-            mkdir -p $pasta
-            cp $AIDL_BIN $pasta/aidl
-            chmod +x $pasta/aidl
-          done
-          
-          echo "✅ SDK + NDK PRONTOS — BUILDOZER NÃO PRECISA BAIXAR NADA!"
-
-      - name: 🚀 COMPILA — FORÇA USAR O QUE JÁ EXISTE
-        run: |
-          python3 -m buildozer android debug --no-updates --no-distribute --log-level 2
-        timeout-minutes: 180
-
-      - name: 📦 PEGA O APK GERADO
+      - name: 📦 PEGA O APK
         run: |
           mkdir -p bin
-          APK=$(find /home/runner -name "*.apk" -type f | head -n 1)
-          if [ -n "$APK" ]; then
-            cp "$APK" bin/BotTradingPro.apk
-            echo "✅ APK GERADO COM SUCESSO!"
-          else
-            echo "❌ APK NÃO ENCONTRADO"
-            exit 1
-          fi
+          APK=$(find . -name "*.apk" -type f | head -n 1)
+          [ -n "$APK" ] && cp "$APK" bin/BotTradingPro.apk
 
-      - name: 📥 BAIXAR O APK
+      - name: 📥 BAIXA
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-FINAL
           path: bin/*.apk
+
