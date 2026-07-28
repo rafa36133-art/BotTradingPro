@@ -21,19 +21,24 @@ jobs:
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37
           python3 -m pip install --user buildozer==1.5.0
 
-      - name: Preparar SDK e licenças
+      - name: Preparar SDK — SEM O YES QUE CAUSA ERRO!
         run: |
           mkdir -p $ANDROID_HOME/cmdline-tools
           cd $ANDROID_HOME/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
           unzip -q cmd.zip && mv cmdline-tools latest
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
           
-          yes | sdkmanager --sdk_root=$ANDROID_HOME \
-            "platform-tools" "build-tools;33.0.3" "platforms;android-33" "ndk;25.2.9519653" > /dev/null 2>&1
-          
+          # ✅ CRIA LICENÇA MANUALMENTE — NÃO PRECISA DO YES!
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+          echo "84831b9409646a918e30573bab48c9c86a8f3254" > $ANDROID_HOME/licenses/android-sdk-preview-license
           
+          # Instala componentes sem precisar confirmar
+          sdkmanager --sdk_root=$ANDROID_HOME --install \
+            "platform-tools" "build-tools;33.0.3" "platforms;android-33" "ndk;25.2.9519653"
+          
+          # Copia SDK para o Buildozer encontrar
           mkdir -p /home/runner/.buildozer/platform/android-sdk
           cp -r $ANDROID_HOME/* /home/runner/.buildozer/platform/android-sdk/
 
