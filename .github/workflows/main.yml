@@ -10,7 +10,7 @@ jobs:
     env:
       ANDROID_HOME: /home/runner/Android/Sdk
       ANDROID_NDK_HOME: /home/runner/Android/Sdk/ndk/25.2.9519653
-      PATH: /usr/bin:/bin:/home/runner/Android/Sdk/cmdline-tools/latest/bin:/home/runner/Android/Sdk/platform-tools:$PATH
+      PATH: /usr/bin:/bin:/home/runner/.local/bin:/home/runner/Android/Sdk/cmdline-tools/latest/bin:/home/runner/Android/Sdk/platform-tools:$PATH
 
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,9 @@ jobs:
       - name: Instalar Python e ferramentas
         run: |
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37
-          python3 -m pip install python-for-android==2023.9.16
+          python3 -m pip install --user python-for-android==2023.9.16
+          # Confirma que está instalado
+          python3 -m pythonforandroid --version
 
       - name: Preparar SDK
         run: |
@@ -38,9 +40,9 @@ jobs:
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
 
-      - name: 🚀 COMPILAR DIRETO — NÃO TEM MAIS SEGREDOS!
+      - name: 🚀 COMPILAR — USANDO CAMINHO CERTO!
         run: |
-          p4a apk \
+          python3 -m pythonforandroid apk \
             --name "BotTradingPro" \
             --package.name "bottradingpro" \
             --package.domain "com.trading.bot" \
@@ -61,7 +63,6 @@ jobs:
             --add-assets "*.kv:." \
             --add-assets "*.png:." \
             --add-assets "*.json:." \
-            --add-assets "*.env:." \
             --icon icon.png \
             --debug \
             --out bin/BotTradingPro.apk
