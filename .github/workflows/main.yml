@@ -9,23 +9,27 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       ANDROID_HOME: /home/runner/Android/Sdk
-      PATH: /usr/bin:/bin:/home/runner/Android/Sdk/cmdline-tools/latest/bin:/home/runner/Android/Sdk/platform-tools:$PATH
+      PATH: /usr/bin:/bin:/home/runner/.local/bin:/home/runner/Android/Sdk/cmdline-tools/latest/bin:/home/runner/Android/Sdk/platform-tools:$PATH
 
     steps:
-      - name: 🧹 GARANTE COMANDOS BÁSICOS EXISTEM
+      - name: GARANTE COMANDOS BÁSICOS
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq tar zip unzip git wget
+          sudo apt-get install -y -qq tar zip unzip git wget build-essential python3-pip openjdk-17-jdk android-sdk-build-tools aidl
 
       - uses: actions/checkout@v4
 
-      - name: Instalar tudo o que precisa
+      - name: INSTALA BUILDOZER E ADICIONA NO CAMINHO
         run: |
-          sudo apt-get install -y -qq build-essential python3-pip openjdk-17-jdk android-sdk-build-tools aidl
           python3 -m pip install --upgrade pip setuptools wheel
-          python3 -m pip install sh==1.14.3 Cython==0.29.37 buildozer==1.5.0
+          python3 -m pip install --user sh==1.14.3 Cython==0.29.37 buildozer==1.5.0
+          # ✅ CRIA ATALHO GLOBAL DO BUILDOZER
+          echo "alias buildozer='python3 -m buildozer'" >> ~/.bashrc
+          source ~/.bashrc
+          # Confirma que está funcionando
+          python3 -m buildozer --version
 
-      - name: 🛠️ Preparar SDK e caminhos
+      - name: PREPARAR SDK E CAMINHOS
         run: |
           mkdir -p $ANDROID_HOME/cmdline-tools
           cd $ANDROID_HOME/cmdline-tools
@@ -43,17 +47,18 @@ jobs:
           mkdir -p /home/runner/.buildozer/platform/android-sdk
           cp -r $ANDROID_HOME/* /home/runner/.buildozer/platform/android-sdk/
 
-      - name: 🚀 COMPILAR
-        run: buildozer android debug --no-updates
+      - name: 🚀 COMPILAR — AGORA COMANDO EXISTE!
+        run: |
+          python3 -m buildozer android debug --no-updates
         timeout-minutes: 120
 
-      - name: 🔍 PEGAR APK
+      - name: PEGAR APK
         run: |
           mkdir -p bin
           APK=$(find /home/runner -name "*.apk" -type f | head -n 1)
           [ -n "$APK" ] && cp "$APK" bin/BotTradingPro.apk
 
-      - name: ✅ BAIXAR APK
+      - name: BAIXAR APK
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-FINAL
