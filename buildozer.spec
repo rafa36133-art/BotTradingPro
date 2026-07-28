@@ -17,3 +17,4 @@ android.permissions = INTERNET,ACCESS_NETWORK_STATE,WAKE_LOCK,FOREGROUND_SERVICE
 [buildozer]
 log_level = 2
 warn_on_root = 1
+
