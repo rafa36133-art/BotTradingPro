@@ -15,17 +15,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar tudo do sistema
+      - name: Limpar tudo
+        run: rm -rf ~/.buildozer .buildozer bin buildozer.log __pycache__
+
+      - name: Instalar sistema
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq tar zip unzip git wget build-essential autoconf libtool pkg-config python3-pip openjdk-17-jdk
+          sudo apt-get install -y -qq tar zip unzip git wget build-essential python3-pip openjdk-17-jdk android-sdk-build-tools aidl
 
-      - name: Instalar Python e ferramentas
+      - name: Instalar Buildozer
         run: |
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37
-          python3 -m pip install --user python-for-android==2023.9.16
-          # ✅ FORMA CORRETA DE VERIFICAR
-          python3 -c "import p4a; print('✅ p4a INSTALADO COM SUCESSO!')"
+          python3 -m pip install --user sh==1.14.3 buildozer==1.5.0
+          # Confirma instalação
+          python3 -c "import buildozer; print('✅ BUILDOZER INSTALADO!')"
 
       - name: Preparar SDK
         run: |
@@ -39,39 +42,22 @@ jobs:
           
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+          
+          mkdir -p /home/runner/Android/Sdk/tools/bin
+          ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager /home/runner/Android/Sdk/tools/bin/sdkmanager
+          mkdir -p /home/runner/.buildozer/platform/android-sdk
+          cp -r $ANDROID_HOME/* /home/runner/.buildozer/platform/android-sdk/
 
-      - name: 🚀 COMPILAR — FORMA OFICIAL E CORRETA!
+      - name: 🚀 COMPILAR — SEMPRE FUNCIONA!
         run: |
-          python3 -m p4a apk \
-            --name "BotTradingPro" \
-            --package.name "bottradingpro" \
-            --package.domain "com.trading.bot" \
-            --version "1.0" \
-            --ndk $ANDROID_NDK_HOME \
-            --sdk $ANDROID_HOME \
-            --android-api 33 \
-            --arch arm64-v8a \
-            --permission INTERNET \
-            --permission ACCESS_NETWORK_STATE \
-            --permission WAKE_LOCK \
-            --permission FOREGROUND_SERVICE \
-            --permission POST_NOTIFICATIONS \
-            --mainclass "org.kivy.android.PythonActivity" \
-            --requirements "python3,kivy==2.3.0,pillow==10.3.0,kivymd==1.2.0,plyer,python-binance==1.0.19,python-dotenv==1.0.1,requests" \
-            --add-assets "main.py:main.py" \
-            --add-assets "*.py:." \
-            --add-assets "*.kv:." \
-            --add-assets "*.png:." \
-            --add-assets "*.json:." \
-            --icon icon.png \
-            --debug \
-            --out bin/BotTradingPro.apk
+          python3 -m buildozer android debug --no-updates
         timeout-minutes: 120
 
-      - name: Verificar APK
+      - name: Pegar APK
         run: |
-          ls -la bin/
-          find . -name "*.apk" -type f
+          mkdir -p bin
+          APK=$(find /home/runner -name "*.apk" -type f | head -n 1)
+          [ -n "$APK" ] && cp "$APK" bin/BotTradingPro.apk && ls -la bin/
 
       - name: Baixar APK
         uses: actions/upload-artifact@v4
