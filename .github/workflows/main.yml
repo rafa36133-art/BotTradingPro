@@ -10,17 +10,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 📦 INSTALA TUDO COM NOMES QUE EXISTEM
+      - name: 📦 INSTALA TUDO + VERSÃO MAIS ESTÁVEL DO BUILDOZER
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk-headless android-sdk-build-tools aidl ant
-          python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37
-          python3 -m pip install --user buildozer==1.5.0
+          python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37 requests==2.31.0
+          # ✅ USA VERSÃO 1.4.2 — A MAIS ESTÁVEL DE TODAS, SEM BUG NO DOWNLOAD
+          python3 -m pip install --user buildozer==1.4.2
 
-      - name: 🚀 COMPILA
+      - name: 🚀 COMPILA — FORÇA NÃO BAIXAR NADA
         run: |
-          python3 -m buildozer android debug --no-updates --log-level 2
-        timeout-minutes: 240
+          python3 -m buildozer android debug --no-updates --no-distribute --log-level 2
+        timeout-minutes: 300
 
       - name: 📦 PEGA O APK GERADO
         run: |
@@ -39,4 +40,3 @@ jobs:
         with:
           name: BotTradingPro-APK-FINAL
           path: bin/*.apk
-
