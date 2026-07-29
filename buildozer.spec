@@ -17,5 +17,8 @@ android.permissions = INTERNET,ACCESS_NETWORK_STATE,WAKE_LOCK,FOREGROUND_SERVICE
 [buildozer]
 log_level = 2
 warn_on_root = 1
+android.ndk_path = /home/runner/.buildozer/platform/android-sdk/ndk/25.2.9519653
+android.sdk_path = /home/runner/.buildozer/platform/android-sdk
 android.ndk_download = False
 android.sdk_download = False
+
