@@ -10,17 +10,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 📦 INSTALA TUDO + VERSÃO ATUAL E ESTÁVEL
+      - name: 📦 INSTALA DEPENDÊNCIAS DO SISTEMA
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk-headless android-sdk-build-tools aidl ant
-          python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37 requests==2.31.0
-          # ✅ USA A VERSÃO DISPONÍVEL E CORRIGE O BUG ANTES DE USAR
-          python3 -m pip install --user buildozer==1.5.0
-          # Corrige o bug do Unicode no download
-          sed -i 's/url = url.encode("ascii")/pass/g' ~/.local/lib/python3.10/site-packages/buildozer/__init__.py
 
-      - name: 🚀 COMPILA — FORÇA NÃO BAIXAR NADA
+      - name: 🐍 INSTALA PYTHON E BUILDOZER
+        run: |
+          python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37 requests==2.31.0
+          python3 -m pip install --user buildozer==1.5.0
+          
+          # ✅ CORRIGE O BUG DO BUILDOZER — NÃO VAI MAIS DAR ERRO DE ARQUIVO FECHADO
+          BUILD_DIR=~/.local/lib/python3.10/site-packages/buildozer
+          sed -i 's/block = fp.read(bs)/try:\n                block = fp.read(bs)\n            except ValueError:\n                break/g' $BUILD_DIR/__init__.py
+          sed -i 's/url = url.encode("ascii").decode()/pass/g' $BUILD_DIR/__init__.py
+
+      - name: 📥 BAIXA SDK E NDK MANUALMENTE — ANTES DO BUILDOZER
+        run: |
+          export ANDROID_HOME=/home/runner/.buildozer/platform/android-sdk
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          
+          # Baixa command line tools
+          wget -q --tries=5 --timeout=120 https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
+          unzip -q cmd.zip && mv cmdline-tools latest
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          
+          # Aceita licenças
+          mkdir -p $ANDROID_HOME/licenses
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+          echo "84831b9409646a918e30573bab48c9c86a8f3254" > $ANDROID_HOME/licenses/android-sdk-preview-license
+          
+          # Instala componentes
+          yes | sdkmanager --sdk_root=$ANDROID_HOME --install \
+            "platform-tools" "build-tools;33.0.2" "platforms;android-33"
+          
+          # ✅ BAIXA O NDK DIRETO E EXTRAI NO LUGAR EXATO
+          cd $ANDROID_HOME
+          wget -q --tries=5 --timeout=300 https://dl.google.com/android/repository/android-ndk-r25.2.9519653-linux.zip -O ndk.zip
+          unzip -q ndk.zip
+          mv android-ndk-r25.2.9519653 ndk/25.2.9519653
+          rm ndk.zip
+          
+          # Coloca AIDL no lugar
+          AIDL_BIN=$(which aidl)
+          cp $AIDL_BIN $ANDROID_HOME/build-tools/33.0.2/aidl
+          chmod +x $ANDROID_HOME/build-tools/33.0.2/aidl
+          
+          echo "✅ SDK E NDK 100% PRONTOS NO LUGAR QUE O BUILDOZER PROCURA!"
+
+      - name: 🚀 COMPILA — AGORA NÃO BAIXA NADA
         run: |
           python3 -m buildozer android debug --no-updates --no-distribute --log-level 2
         timeout-minutes: 300
@@ -42,3 +81,4 @@ jobs:
         with:
           name: BotTradingPro-APK-FINAL
           path: bin/*.apk
+
