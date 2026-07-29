@@ -10,13 +10,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 📦 INSTALA TUDO + VERSÃO MAIS ESTÁVEL DO BUILDOZER
+      - name: 📦 INSTALA TUDO + VERSÃO ATUAL E ESTÁVEL
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk-headless android-sdk-build-tools aidl ant
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37 requests==2.31.0
-          # ✅ USA VERSÃO 1.4.2 — A MAIS ESTÁVEL DE TODAS, SEM BUG NO DOWNLOAD
-          python3 -m pip install --user buildozer==1.4.2
+          # ✅ USA A VERSÃO DISPONÍVEL E CORRIGE O BUG ANTES DE USAR
+          python3 -m pip install --user buildozer==1.5.0
+          # Corrige o bug do Unicode no download
+          sed -i 's/url = url.encode("ascii")/pass/g' ~/.local/lib/python3.10/site-packages/buildozer/__init__.py
 
       - name: 🚀 COMPILA — FORÇA NÃO BAIXAR NADA
         run: |
@@ -40,4 +42,3 @@ jobs:
         with:
           name: BotTradingPro-APK-FINAL
           path: bin/*.apk
-
