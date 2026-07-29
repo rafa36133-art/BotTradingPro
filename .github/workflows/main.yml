@@ -10,10 +10,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 📦 INSTALA TUDO COM NOMES CORRETOS
+      - name: 📦 INSTALA TUDO COM NOMES QUE EXISTEM
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk android-sdk-build-tools aidl ant
+          sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk-headless android-sdk-build-tools aidl ant
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37
           python3 -m pip install --user buildozer==1.5.0
 
@@ -22,13 +22,19 @@ jobs:
           python3 -m buildozer android debug --no-updates --log-level 2
         timeout-minutes: 240
 
-      - name: 📦 PEGA O APK
+      - name: 📦 PEGA O APK GERADO
         run: |
           mkdir -p bin
           APK=$(find . -name "*.apk" -type f | head -n 1)
-          [ -n "$APK" ] && cp "$APK" bin/BotTradingPro.apk
+          if [ -n "$APK" ]; then
+            cp "$APK" bin/BotTradingPro.apk
+            echo "✅ APK GERADO COM SUCESSO!"
+          else
+            echo "❌ APK NÃO ENCONTRADO"
+            exit 1
+          fi
 
-      - name: 📥 BAIXA
+      - name: 📥 BAIXAR O APK
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-FINAL
