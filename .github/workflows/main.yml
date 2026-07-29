@@ -7,20 +7,19 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
-    container: python:3.10
     steps:
       - uses: actions/checkout@v4
 
-      - name: 📦 INSTALA TUDO NO CONTAINER — JÁ VEM COM PYTHON
+      - name: 📦 INSTALA TUDO COM NOMES CORRETOS
         run: |
-          apt-get update -qq
-          apt-get install -y -qq git wget zip unzip build-essential openjdk-17-jdk android-sdk-build-tools aidl ant
-          python -m pip install --upgrade pip setuptools wheel cython==0.29.37
-          python -m pip install buildozer==1.5.0
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk android-sdk-build-tools aidl ant
+          python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37
+          python3 -m pip install --user buildozer==1.5.0
 
-      - name: 🚀 COMPILA DIRETO — NÃO PRECISA BAIXAR NADA EXTRA
+      - name: 🚀 COMPILA
         run: |
-          buildozer android debug --no-updates --log-level 2
+          python3 -m buildozer android debug --no-updates --log-level 2
         timeout-minutes: 240
 
       - name: 📦 PEGA O APK
