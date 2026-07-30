@@ -81,3 +81,4 @@ jobs:
         with:
           name: BotTradingPro-APK-FINAL
           path: bin/*.apk
+
