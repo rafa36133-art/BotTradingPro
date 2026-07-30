@@ -10,75 +10,112 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 📦 INSTALA DEPENDÊNCIAS DO SISTEMA
+      - name: 🔧 LIMPA TUDO
+        run: rm -rf ~/.buildozer ~/Android
+
+      - name: 📦 DEPENDÊNCIAS DO SISTEMA
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk-headless android-sdk-build-tools aidl ant
 
-      - name: 🐍 INSTALA PYTHON E BUILDOZER + CORRIGE BUGS
+      - name: 🐍 PYTHON + BUILDOZER + ✅ CORRIGE O BUG DEFINITIVAMENTE
         run: |
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37 requests==2.31.0
           python3 -m pip install --user buildozer==1.5.0
           
-          # Corrige bugs do Buildozer
-          BUILD_DIR=~/.local/lib/python3.10/site-packages/buildozer
-          sed -i 's/block = fp.read(bs)/try:\n                block = fp.read(bs)\n            except ValueError:\n                break/g' $BUILD_DIR/__init__.py
-          sed -i 's/url = url.encode("ascii").decode()/pass/g' $BUILD_DIR/__init__.py
+          # ✅ SUBSTITUI A FUNÇÃO DOWNLOAD INTEIRA — ACABA O BUG DE VEZ
+          BUILD_FILE=~/.local/lib/python3.10/site-packages/buildozer/__init__.py
+          cat > /tmp/fix_download.py << 'EOF'
+          import re
+          with open("/home/runner/.local/lib/python3.10/site-packages/buildozer/__init__.py", "r") as f:
+              content = f.read()
+          
+          # Nova função de download usando requests — NUNCA MAIS ERRO DE ARQUIVO FECHADO
+          new_func = '''    def download(self, url, filename, report_hook):
+        import requests
+        print("Downloading " + url)
+        r = requests.get(url, stream=True, timeout=300)
+        r.raise_for_status()
+        total = int(r.headers.get("content-length", 0))
+        downloaded = 0
+        with open(filename, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if report_hook:
+                        report_hook(downloaded // 8192, 8192, total)
+        return filename
+'''
+          # Encontra e substitui a função antiga inteira
+          pattern = re.compile(r'    def download\(self, url, filename, report_hook\):.*?(?=\n    def |\nclass |\Z)', re.DOTALL)
+          content = pattern.sub(new_func, content, count=1)
+          
+          with open(BUILD_FILE, "w") as f:
+              f.write(content)
+          print("✅ BUG DO BUILDOZER CORRIGIDO DEFINITIVAMENTE!")
+          EOF
+          python3 /tmp/fix_download.py
 
-      - name: 📥 BAIXA SDK E NDK MANUALMENTE — ✅ SEM O YES QUE CAUSA ERRO!
+      - name: 📥 BAIXA TUDO ANTES — NA PASTA EXATA QUE ELE USA
         run: |
-          export ANDROID_HOME=/home/runner/.buildozer/platform/android-sdk
-          mkdir -p $ANDROID_HOME/cmdline-tools
-          cd $ANDROID_HOME/cmdline-tools
+          BZ=/home/runner/.buildozer/platform
+          SDK=$BZ/android-sdk
+          mkdir -p $SDK/cmdline-tools $SDK/licenses
           
-          # Baixa command line tools
-          wget -q --tries=5 --timeout=120 https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
+          # 1. ANT (ele sempre procura aqui)
+          cd $BZ
+          wget -q --tries=5 https://archive.apache.org/dist/ant/binaries/apache-ant-1.9.4-bin.tar.gz
+          tar xzf apache-ant-1.9.4-bin.tar.gz
+          mv apache-ant-1.9.4 apache-ant
+          touch apache-ant/.installed
+          
+          # 2. Command line tools
+          cd $SDK/cmdline-tools
+          wget -q --tries=5 https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
           unzip -q cmd.zip && mv cmdline-tools latest
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          export PATH=$SDK/cmdline-tools/latest/bin:$SDK/platform-tools:$PATH
           
-          # ✅ LICENÇAS JÁ ACEITAS — NÃO PRECISA DE NENHUMA CONFIRMAÇÃO
-          mkdir -p $ANDROID_HOME/licenses
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
-          echo "84831b9409646a918e30573bab48c9c86a8f3254" > $ANDROID_HOME/licenses/android-sdk-preview-license
+          # 3. Licenças — 100% completas
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $SDK/licenses/android-sdk-license
+          echo "84831b9409646a918e30573bab48c9c86a8f3254" > $SDK/licenses/android-sdk-preview-license
+          echo "d975f751698a77b662f1254ddbeed3901e976f5a" > $SDK/licenses/intel-android-extra-license
           
-          # ✅ INSTALA SEM O YES — NÃO VAI PEDIR NADA!
-          sdkmanager --sdk_root=$ANDROID_HOME --install \
-            "platform-tools" "build-tools;33.0.2" "platforms;android-33"
+          # 4. Instala SDK build-tools e platform
+          sdkmanager --sdk_root=$SDK --install "build-tools;33.0.2" "platforms;android-33" "platform-tools"
           
-          # Baixa NDK direto
-          cd $ANDROID_HOME
-          wget -q --tries=5 --timeout=300 https://dl.google.com/android/repository/android-ndk-r25.2.9519653-linux.zip -O ndk.zip
+          # 5. ✅ NDK r25c — VERSÃO EXATA QUE O P4A RECOMENDA
+          cd $SDK
+          wget -q --tries=5 --timeout=300 https://dl.google.com/android/repository/android-ndk-r25c-linux.zip -O ndk.zip
           unzip -q ndk.zip
-          mv android-ndk-r25.2.9519653 ndk/25.2.9519653
+          mv android-ndk-r25c ndk/25.2.9519653
           rm ndk.zip
           
-          # Coloca AIDL no lugar
-          AIDL_BIN=$(which aidl)
-          cp $AIDL_BIN $ANDROID_HOME/build-tools/33.0.2/aidl
-          chmod +x $ANDROID_HOME/build-tools/33.0.2/aidl
+          # 6. AIDL no lugar certo
+          cp $(which aidl) $SDK/build-tools/33.0.2/aidl
+          chmod +x $SDK/build-tools/33.0.2/aidl
           
-          echo "✅ SDK E NDK 100% PRONTOS!"
+          # 7. ✅ ARQUIVOS DE MARCA — ELE VAI PULAR TODO DOWNLOAD!
+          touch $SDK/.installed
+          touch $SDK/ndk/25.2.9519653/.installed
+          touch $SDK/build-tools/33.0.2/.installed
+          touch $SDK/platforms/android-33/.installed
+          
+          echo "✅ TUDO INSTALADO E MARCADO — ELE NÃO VAI TENTAR BAIXAR NADA MAIS!"
 
-      - name: 🚀 COMPILA
+      - name: 🚀 COMPILA — AGORA SÓ COMPILA, NÃO BAIXA NADA
         run: |
           python3 -m buildozer android debug --no-updates --no-distribute --log-level 2
         timeout-minutes: 300
 
-      - name: 📦 PEGA O APK GERADO
+      - name: 📦 PEGA APK
         run: |
           mkdir -p bin
           APK=$(find . -name "*.apk" -type f | head -n 1)
-          if [ -n "$APK" ]; then
-            cp "$APK" bin/BotTradingPro.apk
-            echo "✅ APK GERADO COM SUCESSO!"
-          else
-            echo "❌ APK NÃO ENCONTRADO"
-            exit 1
-          fi
+          [ -n "$APK" ] && cp "$APK" bin/BotTradingPro.apk && echo "✅ APK GERADO!"
 
-      - name: 📥 BAIXAR O APK
+      - name: 📥 BAIXA APK
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-FINAL
           path: bin/*.apk
-
