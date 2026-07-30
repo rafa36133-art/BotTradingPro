@@ -15,17 +15,17 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk-headless android-sdk-build-tools aidl ant
 
-      - name: 🐍 INSTALA PYTHON E BUILDOZER
+      - name: 🐍 INSTALA PYTHON E BUILDOZER + CORRIGE BUGS
         run: |
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37 requests==2.31.0
           python3 -m pip install --user buildozer==1.5.0
           
-          # ✅ CORRIGE O BUG DO BUILDOZER — NÃO VAI MAIS DAR ERRO DE ARQUIVO FECHADO
+          # Corrige bugs do Buildozer
           BUILD_DIR=~/.local/lib/python3.10/site-packages/buildozer
           sed -i 's/block = fp.read(bs)/try:\n                block = fp.read(bs)\n            except ValueError:\n                break/g' $BUILD_DIR/__init__.py
           sed -i 's/url = url.encode("ascii").decode()/pass/g' $BUILD_DIR/__init__.py
 
-      - name: 📥 BAIXA SDK E NDK MANUALMENTE — ANTES DO BUILDOZER
+      - name: 📥 BAIXA SDK E NDK MANUALMENTE — ✅ SEM O YES QUE CAUSA ERRO!
         run: |
           export ANDROID_HOME=/home/runner/.buildozer/platform/android-sdk
           mkdir -p $ANDROID_HOME/cmdline-tools
@@ -36,16 +36,16 @@ jobs:
           unzip -q cmd.zip && mv cmdline-tools latest
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
           
-          # Aceita licenças
+          # ✅ LICENÇAS JÁ ACEITAS — NÃO PRECISA DE NENHUMA CONFIRMAÇÃO
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
           echo "84831b9409646a918e30573bab48c9c86a8f3254" > $ANDROID_HOME/licenses/android-sdk-preview-license
           
-          # Instala componentes
-          yes | sdkmanager --sdk_root=$ANDROID_HOME --install \
+          # ✅ INSTALA SEM O YES — NÃO VAI PEDIR NADA!
+          sdkmanager --sdk_root=$ANDROID_HOME --install \
             "platform-tools" "build-tools;33.0.2" "platforms;android-33"
           
-          # ✅ BAIXA O NDK DIRETO E EXTRAI NO LUGAR EXATO
+          # Baixa NDK direto
           cd $ANDROID_HOME
           wget -q --tries=5 --timeout=300 https://dl.google.com/android/repository/android-ndk-r25.2.9519653-linux.zip -O ndk.zip
           unzip -q ndk.zip
@@ -57,9 +57,9 @@ jobs:
           cp $AIDL_BIN $ANDROID_HOME/build-tools/33.0.2/aidl
           chmod +x $ANDROID_HOME/build-tools/33.0.2/aidl
           
-          echo "✅ SDK E NDK 100% PRONTOS NO LUGAR QUE O BUILDOZER PROCURA!"
+          echo "✅ SDK E NDK 100% PRONTOS!"
 
-      - name: 🚀 COMPILA — AGORA NÃO BAIXA NADA
+      - name: 🚀 COMPILA
         run: |
           python3 -m buildozer android debug --no-updates --no-distribute --log-level 2
         timeout-minutes: 300
@@ -81,4 +81,3 @@ jobs:
         with:
           name: BotTradingPro-APK-FINAL
           path: bin/*.apk
-
