@@ -10,84 +10,95 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 🔧 LIMPA TUDO
-        run: rm -rf ~/.buildozer ~/Android
+      - name: 🔧 PASSO 1 — LIMPA TUDO
+        run: |
+          rm -rf ~/.buildozer ~/Android
+          mkdir -p ~/.buildozer/platform/android-sdk
 
-      - name: 📦 INSTALA PACOTES DO SISTEMA
+      - name: 📦 PASSO 2 — PACOTES DO SISTEMA
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq git wget curl zip unzip build-essential default-jdk-headless android-sdk-build-tools aidl ant
+          sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk-headless ant
 
-      - name: 🐍 INSTALA PYTHON E BUILDOZER
+      - name: 🐍 PASSO 3 — PYTHON + BUILDOZER
         run: |
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37 requests==2.31.0
           python3 -m pip install --user buildozer==1.5.0
 
-      - name: ✅ CORRIGE BUG DO BUILDOZER (APENAS 2 COMANDOS SIMPLES)
+      - name: ✅ PASSO 4 — CORRIGE O BUG DO DOWNLOAD NA RAIZ
         run: |
           BD=~/.local/lib/python3.10/site-packages/buildozer/__init__.py
-          sed -i 's/block = fp.read(bs)/try: block = fp.read(bs)\nexcept ValueError: break/g' $BD
-          sed -i 's/url = url.encode("ascii").decode()/url = str(url)/g' $BD
+          # Remove a linha que fecha o arquivo cedo (causa do read of closed file)
+          sed -i '/fp.close()/d' $BD
+          # Remove a linha que quebra com ASCII
+          sed -i '/url.encode.*ascii/d' $BD
           echo "Bug corrigido"
 
-      - name: 📥 BAIXA SDK E NDK ANTES DE TUDO
+      - name: 📥 PASSO 5 — BAIXA TUDO (CORRIGIDO: CRIA PASTAS ANTES!)
         run: |
+          set -e
           BZ=/home/runner/.buildozer/platform
           SDK=$BZ/android-sdk
-          mkdir -p $SDK/cmdline-tools $SDK/licenses
+          cd $SDK
 
-          # ANT
+          # 1. ANT (no lugar exato)
           cd $BZ
           wget -q --tries=5 https://archive.apache.org/dist/ant/binaries/apache-ant-1.9.4-bin.tar.gz
           tar xzf apache-ant-1.9.4-bin.tar.gz
           mv apache-ant-1.9.4 apache-ant
           touch apache-ant/.installed
 
-          # Command line tools
+          # 2. Command line tools
           cd $SDK/cmdline-tools
           wget -q --tries=5 https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
           unzip -q cmd.zip && mv cmdline-tools latest
           export PATH=$SDK/cmdline-tools/latest/bin:$SDK/platform-tools:$PATH
 
-          # Licenças
+          # 3. LICENÇAS COMPLETAS
+          mkdir -p $SDK/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $SDK/licenses/android-sdk-license
           echo "84831b9409646a918e30573bab48c9c86a8f3254" > $SDK/licenses/android-sdk-preview-license
+          echo "d975f751698a77b662f1254ddbeed3901e976f5a" > $SDK/licenses/intel-android-extra-license
 
-          # SDK componentes
-          sdkmanager --sdk_root=$SDK --install "build-tools;33.0.2" "platforms;android-33" "platform-tools"
+          # 4. SDK COMPONENTES (SEM UPDATE, SEM BAIXAR 37!)
+          sdkmanager --sdk_root=$SDK --install --channel=0 "build-tools;33.0.2" "platforms;android-33" "platform-tools"
 
-          # NDK r25c
+          # ✅ CORREÇÃO QUE EU NUNCA FIZ: TRANCA O SDK PARA NUNCA MAIS ATUALIZAR
+          echo "2099-01-01T00:00:00" > $SDK/.last_update_check
+          touch $SDK/.installed
+          touch $SDK/build-tools/33.0.2/.installed
+          touch $SDK/platforms/android-33/.installed
+          chmod +x $SDK/build-tools/33.0.2/aidl
+
+          # ✅ CORREÇÃO DO NDK: CRIA A PASTA ANTES DE MOVER!
           cd $SDK
           wget -q --tries=5 --timeout=300 https://dl.google.com/android/repository/android-ndk-r25c-linux.zip -O ndk.zip
           unzip -q ndk.zip
-          mv android-ndk-r25c ndk/25.2.9519653
-          rm ndk.zip
+          # AQUI ESTAVA O ERRO DE TODAS AS VEZES:
+          mkdir -p ndk/25.2.9519653
+          mv android-ndk-r25c/* ndk/25.2.9519653/
+          rm -rf android-ndk-r25c ndk.zip
+          touch ndk/25.2.9519653/.installed
 
-          # AIDL
-          cp $(which aidl) $SDK/build-tools/33.0.2/aidl
-          chmod +x $SDK/build-tools/33.0.2/aidl
+          # Confere se está tudo no lugar
+          ls $SDK/ndk/25.2.9519653/source.properties
+          echo "Tudo instalado e trancado — ele não vai baixar nada de novo!"
 
-          # Arquivos de marca = NÃO BAIXA NADA MAIS
-          touch $SDK/.installed
-          touch $SDK/ndk/25.2.9519653/.installed
-          touch $SDK/build-tools/33.0.2/.installed
-          echo "Tudo pronto"
-
-      - name: 🚀 COMPILA O APK
+      - name: 🚀 PASSO 6 — COMPILA SÓ O SEU CÓDIGO
         run: |
           python3 -m buildozer android debug --no-updates --no-distribute --log-level 2
         timeout-minutes: 300
 
-      - name: 📦 PEGA O APK
+      - name: 📦 PASSO 7 — PEGA O APK
         run: |
           mkdir -p bin
           APK=$(find . -name "*.apk" -type f | head -n 1)
           if [ -n "$APK" ]; then
             cp "$APK" bin/BotTradingPro.apk
-            echo "APK GERADO COM SUCESSO!"
+            echo "✅ APK GERADO COM SUCESSO!"
           fi
 
-      - name: 📥 BAIXAR APK
+      - name: 📥 PASSO 8 — BAIXAR APK
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-FINAL
