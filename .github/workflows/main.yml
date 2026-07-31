@@ -8,65 +8,26 @@ jobs:
   build-apk:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout codigo
+      - name: Pegar codigo
         uses: actions/checkout@v4
 
-      - name: Instala pacotes sistema
+      - name: Instalar programas
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk-headless ant
 
-      - name: Instala Python e Buildozer
+      - name: Instalar Python e Buildozer SEM BUG
         run: |
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37 requests==2.31.0
-          python3 -m pip install --user buildozer==1.5.0
+          # Usamos versao 1.4.2 que NAO TEM o erro de "read of closed file"
+          python3 -m pip install --user buildozer==1.4.2
 
-      - name: Conserta bug do Buildozer
-        run: |
-          python3 << 'PYEOF'
-          import os, re
-          caminho = os.path.expanduser("~/.local/lib/python3.10/site-packages/buildozer/__init__.py")
-          with open(caminho, "r") as f:
-              conteudo = f.read()
-
-          funcao_nova = '''    def download(self, url, filename, report_hook):
-        import requests
-        print("Downloading " + url)
-        resp = requests.get(url, stream=True, timeout=600)
-        resp.raise_for_status()
-        total = int(resp.headers.get("content-length", 0))
-        baixado = 0
-        with open(filename, "wb") as arq:
-            for parte in resp.iter_content(chunk_size=65536):
-                if parte:
-                    arq.write(parte)
-                    baixado += len(parte)
-                    if report_hook:
-                        try:
-                            report_hook(baixado // 65536, 65536, total)
-                        except Exception:
-                            pass
-        return filename
-'''
-          padrao = re.compile(r'    def download\(self, url, filename, report_hook\):.*?(?=\n    def |\nclass |\Z)', re.DOTALL)
-          novo = padrao.sub(funcao_nova, conteudo, count=1)
-
-          with open(caminho, "w") as f:
-              f.write(novo)
-
-          if "requests.get" in open(caminho).read():
-              print("BUG CONSERTADO COM SUCESSO")
-          else:
-              print("ERRO AO CONSERTAR BUG")
-              raise SystemExit(1)
-          PYEOF
-
-      - name: Compila APK
+      - name: Compilar APK
         run: |
           python3 -m buildozer android debug --no-updates --no-distribute --log-level 2
         timeout-minutes: 300
 
-      - name: Prepara APK
+      - name: Preparar APK
         run: |
           mkdir -p bin
           APK=$(find . -name "*.apk" -type f | head -n 1)
@@ -74,7 +35,7 @@ jobs:
             cp "$APK" bin/BotTradingPro.apk
           fi
 
-      - name: Disponibiliza APK
+      - name: Salvar APK
         uses: actions/upload-artifact@v4
         with:
           name: BotTradingPro-APK-FINAL
