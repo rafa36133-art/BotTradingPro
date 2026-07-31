@@ -8,15 +8,10 @@ jobs:
   build-apk:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout do codigo
+      - name: Checkout codigo
         uses: actions/checkout@v4
 
-      - name: Limpa pastas antigas
-        run: |
-          rm -rf /home/runner/.buildozer /home/runner/Android
-          mkdir -p /home/runner/.buildozer/platform/android-sdk
-
-      - name: Instala pacotes do sistema
+      - name: Instala pacotes sistema
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq git wget zip unzip build-essential default-jdk-headless ant
@@ -26,60 +21,52 @@ jobs:
           python3 -m pip install --upgrade pip setuptools wheel cython==0.29.37 requests==2.31.0
           python3 -m pip install --user buildozer==1.5.0
 
-      - name: Corrige bug interno do Buildozer
+      - name: Conserta bug do Buildozer
         run: |
-          BD=/home/runner/.local/lib/python3.10/site-packages/buildozer/__init__.py
-          sed -i '/fp.close()/d' $BD
-          sed -i '/url.encode.*ascii/d' $BD
+          python3 << 'PYEOF'
+          import os, re
+          caminho = os.path.expanduser("~/.local/lib/python3.10/site-packages/buildozer/__init__.py")
+          with open(caminho, "r") as f:
+              conteudo = f.read()
 
-      - name: Baixa SDK e NDK completos
-        run: |
-          set -e
-          BZ=/home/runner/.buildozer/platform
-          SDK=$BZ/android-sdk
+          funcao_nova = '''    def download(self, url, filename, report_hook):
+        import requests
+        print("Downloading " + url)
+        resp = requests.get(url, stream=True, timeout=600)
+        resp.raise_for_status()
+        total = int(resp.headers.get("content-length", 0))
+        baixado = 0
+        with open(filename, "wb") as arq:
+            for parte in resp.iter_content(chunk_size=65536):
+                if parte:
+                    arq.write(parte)
+                    baixado += len(parte)
+                    if report_hook:
+                        try:
+                            report_hook(baixado // 65536, 65536, total)
+                        except Exception:
+                            pass
+        return filename
+'''
+          padrao = re.compile(r'    def download\(self, url, filename, report_hook\):.*?(?=\n    def |\nclass |\Z)', re.DOTALL)
+          novo = padrao.sub(funcao_nova, conteudo, count=1)
 
-          cd $BZ
-          wget -q --tries=5 https://archive.apache.org/dist/ant/binaries/apache-ant-1.9.4-bin.tar.gz
-          tar xzf apache-ant-1.9.4-bin.tar.gz
-          mv apache-ant-1.9.4 apache-ant
-          touch apache-ant/.installed
+          with open(caminho, "w") as f:
+              f.write(novo)
 
-          mkdir -p $SDK/cmdline-tools
-          cd $SDK/cmdline-tools
-          wget -q --tries=5 https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmd.zip
-          unzip -q cmd.zip
-          mv cmdline-tools latest
-          export PATH=$SDK/cmdline-tools/latest/bin:$SDK/platform-tools:$PATH
+          if "requests.get" in open(caminho).read():
+              print("BUG CONSERTADO COM SUCESSO")
+          else:
+              print("ERRO AO CONSERTAR BUG")
+              raise SystemExit(1)
+          PYEOF
 
-          mkdir -p $SDK/licenses
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $SDK/licenses/android-sdk-license
-          echo "84831b9409646a918e30573bab48c9c86a8f3254" > $SDK/licenses/android-sdk-preview-license
-          echo "d975f751698a77b662f1254ddbeed3901e976f5a" > $SDK/licenses/intel-android-extra-license
-
-          sdkmanager --sdk_root=$SDK --install --channel=0 "build-tools;33.0.2" "platforms;android-33" "platform-tools"
-
-          echo "2099-01-01T00:00:00" > $SDK/.last_update_check
-          touch $SDK/.installed
-          touch $SDK/build-tools/33.0.2/.installed
-          touch $SDK/platforms/android-33/.installed
-          chmod +x $SDK/build-tools/33.0.2/aidl
-
-          cd $SDK
-          wget -q --tries=5 --timeout=300 https://dl.google.com/android/repository/android-ndk-r25c-linux.zip -O ndk.zip
-          unzip -q ndk.zip
-          mkdir -p ndk/25.2.9519653
-          mv android-ndk-r25c/* ndk/25.2.9519653/
-          rm -rf android-ndk-r25c ndk.zip
-          touch ndk/25.2.9519653/.installed
-
-          ls $SDK/ndk/25.2.9519653/source.properties
-
-      - name: Compila o APK
+      - name: Compila APK
         run: |
           python3 -m buildozer android debug --no-updates --no-distribute --log-level 2
         timeout-minutes: 300
 
-      - name: Prepara APK para download
+      - name: Prepara APK
         run: |
           mkdir -p bin
           APK=$(find . -name "*.apk" -type f | head -n 1)
